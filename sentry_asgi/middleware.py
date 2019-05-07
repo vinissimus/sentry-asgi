@@ -9,10 +9,7 @@ class SentryMiddleware:
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, scope):
-        return functools.partial(self.asgi, asgi_scope=scope)
-
-    async def asgi(self, receive, send, asgi_scope):
+    async def __call__(self, asgi_scope, receive, send):
         hub = sentry_sdk.Hub.current
         with sentry_sdk.Hub(hub) as hub:
             with hub.configure_scope() as sentry_scope:
@@ -21,8 +18,7 @@ class SentryMiddleware:
                 )
                 sentry_scope.add_event_processor(processor)
                 try:
-                    inner = self.app(asgi_scope)
-                    await inner(receive, send)
+                    await self.app(asgi_scope, receive, send)
                 except Exception as exc:
                     hub.capture_exception(exc)
                     raise exc from None
